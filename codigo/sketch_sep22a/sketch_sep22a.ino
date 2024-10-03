@@ -246,6 +246,7 @@ void loop() {
   } else if (flag_salida_interno) {
     //Escucha rfid 2
     Serial.println("Entra a salidad");
+    
     while (flag_salida_interno) {
       if (mfrc522[1].PICC_IsNewCardPresent() && mfrc522[1].PICC_ReadCardSerial()) {
         Serial.print(F("Reader "));

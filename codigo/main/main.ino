@@ -1,12 +1,3 @@
-/*
- Board I2C / TWI pins
-Uno       =   A4 (SDA), A5 (SCL)
-Mega2560  =   20 (SDA), 21 (SCL)
-Leonardo  =   2 (SDA), 3 (SCL)
-Due       =   20 (SDA), 21 (SCL), SDA1, SCL1
-esta configuracion de estos pines se encuentran dentro de la librería "wire" mas info: https://www.arduino.cc/en/Reference/Wire
- */
-
 // ------------- RFIDs ----------------
 #include <SPI.h>      // incluye libreria bus SPI
 #include <MFRC522.h>  // incluye libreria especifica para mfrc5221
@@ -44,8 +35,8 @@ int screenWidth = 16;
 
 
 //-----------Para infrarojos --------------
-const int sensor_entrada = 7;
-const int sensor_salida = 6;
+const int sensor_entrada = 6;
+const int sensor_salida = 5;
 
 volatile bool flag_infra_inicio = false;
 volatile bool flag_infra_intermedio = false;
@@ -53,7 +44,8 @@ volatile bool flag_infra_intermedio = false;
 
 // _--------------Para servo --------------
 #include <Servo.h>
-Servo servoMotor;
+Servo servoMotor_E;
+Servo servoMotor_S;
 
 
 // ------------Para interrupciones ---------
@@ -79,6 +71,7 @@ void setup() {
   SPI.begin();  // inicializa bus SPI
   mfrc522_1.PCD_Init();
   mfrc522_2.PCD_Init();  // inicializa modulo lector
+
   //----------LCD
   lcd.init();
   lcd.backlight();
@@ -94,135 +87,251 @@ void setup() {
 
 
   //----------Servo
-  servoMotor.attach(5);
-  myServo.write(70);
+  servoMotor_E.attach(4);
+  servoMotor_E.write(100);
+
+  servoMotor_S.attach(14);
+  servoMotor_S.write(100);
 
   //Interrupciones
   pinMode(pinEntrada, INPUT);
   pinMode(pinSalida, INPUT);
 
 
-  attachInterrupt(digitalPinToInterrupt(pinEntrada), ISR_entrada, RISING);             //estao entrada
-  attachInterrupt(digitalPinToInterrupt(pinSalida), ISR_Salida, RISING);               //Fichas
+  attachInterrupt(digitalPinToInterrupt(pinEntrada), ISR_entrada, RISING);  //estao entrada
+  attachInterrupt(digitalPinToInterrupt(pinSalida), ISR_Salida, RISING);    //Fichas
 }
 
 void loop() {
-
+  if (ParqueoDisponible == 0) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Parqueo Lleno");
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Parqueo ");
+    lcd.setCursor(0, 1);
+    lcd.print("Disponible: " + String(ParqueoDisponible));
+  }
 
   if (flag_rfid_activo == 1) {
-    Serial.println("Entra a 1");
-    while (flag_rfid_activo == 1) {
-      if (!mfrc522_1.PICC_IsNewCardPresent())  // si no hay una tarjeta presente
-        continue;                             // retorna al loop esperando por una tarjeta
+    if (ParqueoDisponible != 0) {
+      // Serial.println("Entro a flujo");
+      
 
-      if (!mfrc522_1.PICC_ReadCardSerial())  // si no puede obtener datos de la tarjeta
-        continue;                           // retorna al loop esperando por otra tarjeta
+        if (mfrc522_1.PICC_IsNewCardPresent() && mfrc522_1.PICC_ReadCardSerial()) {
+          Serial.print(F("Reader "));
+          Serial.print(0);
 
-      Serial.print("UID:");                           // muestra texto UID:
-      for (byte i = 0; i < mfrc522_1.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
-        if (mfrc522_1.uid.uidByte[i] < 0x10) {         // si el byte leido es menor a 0x10
-          Serial.print(" 0");                         // imprime espacio en blanco y numero cero
-        } else {                                      // sino
-          Serial.print(" ");                          // imprime un espacio en blanco
-        }
-        Serial.print(mfrc522_1.uid.uidByte[i], HEX);  // imprime el byte del UID leido en hexadecimal
-        LecturaUID[i] = mfrc522_1.uid.uidByte[i];     // almacena en array el byte del UID leido
-      }
+          // Show some details of the PICC (that is: the tag/card)
+          Serial.print(F(": Card UID:"));
+          dump_byte_array(mfrc522_1.uid.uidByte, mfrc522_1.uid.size);
 
-      Serial.print("\t");  // imprime un espacio de tabulacion
 
-      if (comparaUID(LecturaUID, Usuario1)) {
+          for (byte i = 0; i < mfrc522_1.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
+            if (mfrc522_1.uid.uidByte[i] < 0x10) {         // si el byte leido es menor a 0x10
+              Serial.print(" 0");                          // imprime espacio en blanco y numero cero
+            } else {                                       // sino
+              Serial.print(" ");                           // imprime un espacio en blanco
+            }
+            Serial.print(mfrc522_1.uid.uidByte[i], HEX);  // imprime el byte del UID leido en hexadecimal
+            LecturaUID[i] = mfrc522_1.uid.uidByte[i];     // almacena en array el byte del UID leido
+          }
+          //Valida si targeta leida es aceptada o no
+          bool Confirmacion_entrada = validarTarjeta(LecturaUID);
 
-        // llama a funcion comparaUID con Usuario1
-        Serial.println("Bienvenido Usuario 1");  // si retorna verdadero muestra texto bienvenida
-                                                 //  desplazarTexto("INGRESO"," USUARIO 1",400);
-        servoMotor.write(7);
-        lcd.clear();
-        lcd.print("USUARIO 1 ");
-      } else if (comparaUID(LecturaUID, Usuario2)) {  // llama a funcion comparaUID con Usuario2
-        Serial.println(" Usuario 2");                 // si retorna verdadero muestra texto bienvenida
-        lcd.clear();
-        lcd.print("USUARIO ADMIN");
-        //  desplazarTexto("INGRESO"," USUARIO 2",400);
-      } else if (comparaUID(LecturaUID, Usuario3)) {  // llama a funcion comparaUID con Usuario2
-        lcd.clear();
-        lcd.print("USUARIO 3 ");
-        Serial.println(" Usuario 3");  // si retorna verdadero muestra texto bienvenida
-        // desplazarTexto("INGRESO"," USUARIO 3",400);
-      } else {                            // si retorna falso
-        Serial.println("No te conozco");  // muestra texto equivalente a acceso denegado
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("NO EXISTE");
-      }
-      flag_rfid_activo = 3;
-      mfrc522_1.PICC_HaltA();
+          if (Confirmacion_entrada) {
+
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Bienvenido: ");
+            lcd.setCursor(0, 1);
+            for (byte i = 0; i < mfrc522_1.uid.size; i++) {
+              lcd.print(LecturaUID[i]);
+            }
+            //Abre la talanquera
+            AbrirTalanquera_E();
+            flag_infra_inicio = true;
+
+            //entra a ciclo para infrarjo
+            while (flag_rfid_activo == 1) {
+              //Caso 1
+              if (flag_infra_inicio == true && flag_infra_intermedio == false) {
+                //Esta atras de la talanquera
+                if (digitalRead(sensor_salida) == HIGH) {
+                  //Aun no se detecta movimiento
+                  continue;
+                } else {
+                  //Se detecta movimiento
+                  flag_infra_intermedio = true;
+                  continue;
+                }
+              }
+              //Caso 2
+              if (flag_infra_inicio == true && flag_infra_intermedio == true) {
+                if (digitalRead(sensor_salida) == HIGH) {
+                  //Dejo de detectar movimiento (Ya paso el carro)
+                  flag_infra_inicio = false;
+                  flag_infra_intermedio = false;
+                  break;
+                } else {
+                  //sigue detectando la presencia del carro
+                  continue;
+                }
+              }
+            }
+            //Descuenta contadodr parqueos
+            ParqueoDisponible -= 1;
+            //Baja la talanquera
+            CerrarTalanquera_E();
+            //Ya leo tarjeta vuelve a normalidad
+            flag_rfid_activo = 3;
+          } else {
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Tarjeta invalida");
+            lcd.setCursor(0, 1);
+            lcd.print("Intente de nuevo");
+          }
+
+
+
+          /*Serial.print(F("PICC type: "));
+          MFRC522::PICC_Type piccType = mfrc522[reader].PICC_GetType(mfrc522[reader].uid.sak);
+          Serial.println(mfrc522[reader].PICC_GetTypeName(piccTypelcd));*/
+          // Halt PICC
+          mfrc522_1.PICC_HaltA();
+          // Stop encryption on PCD
+          // mfrc522_1.PCD_StopCrypto1();
+        
+        }  //if (mfrc522[reader].PICC_IsNewC..
+      
     }
   }  //if rfid 1
 
   if (flag_rfid_activo == 2) {
-    Serial.println("Entra a 2");
-    while (flag_rfid_activo == 2) {
-      if (!mfrc522_2.PICC_IsNewCardPresent())  // si no hay una tarjeta presente
-        continue;                             // retorna al loop esperando por una tarjeta
+    
+    if (ParqueoDisponible < 5) {
+      // Serial.println("Entra a 2");
+      
+        if (mfrc522_2.PICC_IsNewCardPresent() && mfrc522_2.PICC_ReadCardSerial()) {
+          Serial.print(F("Reader "));
+          Serial.print(1);
 
-      if (!mfrc522_2.PICC_ReadCardSerial())  // si no puede obtener datos de la tarjeta
-        continue;                           // retorna al loop esperando por otra tarjeta
+          // Show some details of the PICC (that is: the tag/card)
+          Serial.print(F(": Card UID:"));
+          dump_byte_array(mfrc522_2.uid.uidByte, mfrc522_2.uid.size);
+          // lcd.clear();
+          // lcd.print(" Card UID:" + String(1));
 
-      Serial.print("UID:");                           // muestra texto UID:
-      for (byte i = 0; i < mfrc522_2.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
-        if (mfrc522_2.uid.uidByte[i] < 0x10) {         // si el byte leido es menor a 0x10
-          Serial.print(" 0");                         // imprime espacio en blanco y numero cero
-        } else {                                      // sino
-          Serial.print(" ");                          // imprime un espacio en blanco
-        }
-        Serial.print(mfrc522_2.uid.uidByte[i], HEX);  // imprime el byte del UID leido en hexadecimal
-        LecturaUID[i] = mfrc522_2.uid.uidByte[i];     // almacena en array el byte del UID leido
+          ///--------------------------------
+          for (byte i = 0; i < mfrc522_2.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
+            if (mfrc522_2.uid.uidByte[i] < 0x10) {         // si el byte leido es menor a 0x10
+              Serial.print(" 0");                           // imprime espacio en blanco y numero cero
+            } else {                                        // sino
+              Serial.print(" ");                            // imprime un espacio en blanco
+            }
+            Serial.print(mfrc522_2.uid.uidByte[i], HEX);  // imprime el byte del UID leido en hexadecimal
+            LecturaUID[i] = mfrc522_2.uid.uidByte[i];     // almacena en array el byte del UID leido
+          }
+          //Valida si targeta leida es aceptada o no
+          bool Confirmacion_salida = validarTarjeta(LecturaUID);
+
+          if (Confirmacion_salida) {
+
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Feliz Dia: ");
+            lcd.setCursor(0, 1);
+            for (byte i = 0; i < mfrc522_2.uid.size; i++) {
+              lcd.print(LecturaUID[i]);
+            }
+            //Abre la talanquera
+            AbrirTalanquera_S();
+            flag_infra_inicio = true;
+
+            //entra a ciclo para infrarjo
+            while (flag_rfid_activo == 2) {
+              //Caso 1
+              if (flag_infra_inicio == true && flag_infra_intermedio == false) {
+                //Esta atras de la talanquera
+                if (digitalRead(sensor_entrada) == HIGH) {
+                  //Aun no se detecta movimiento
+                  continue;
+                } else {
+                  //Se detecta movimiento
+                  flag_infra_intermedio = true;
+                  continue;
+                }
+              }
+              //Caso 2
+              if (flag_infra_inicio == true && flag_infra_intermedio == true) {
+                if (digitalRead(sensor_entrada) == HIGH) {
+                  //Dejo de detectar movimiento (Ya paso el carro)
+                  flag_infra_inicio = false;
+                  flag_infra_intermedio = false;
+                  break;
+                } else {
+                  //sigue detectando la presencia del carro
+                  continue;
+                }
+              }
+            }
+            //Aumenta parqueos contadodr parqueos
+            ParqueoDisponible += 1;
+            //Baja la talanquera
+            CerrarTalanquera_S();
+            //Ya leo tarjeta vuelve a normalidad
+            flag_rfid_activo = 3;
+          } else {
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Tarjeta invalida");
+            lcd.setCursor(0, 1);
+            lcd.print("Intente de nuevo");
+          }
+          ///-----------------------------
+
+          /*Serial.print(F("PICC type: "));
+        MFRC522::PICC_Type piccType = mfrc522[reader].PICC_GetType(mfrc522[reader].uid.sak);
+        Serial.println(mfrc522[reader].PICC_GetTypeName(piccType));*/
+          // Halt PICC
+          mfrc522_2.PICC_HaltA();
+          // Stop encryption on PCD
+          // mfrc522_2.PCD_StopCrypto1();
+        }  //if (mfrc522[reader].PICC_IsNewC..
+      
+    } //validar cantidad parqueo
+  } //rfid 2 activo
+  delay(1000);
+}//loop
+
+void dump_byte_array(byte* buffer, byte bufferSize) {
+  for (byte i = 0; i < bufferSize; i++) {
+    Serial.print(buffer[i] < 0x10 ? " 0" : " ");
+    Serial.print(buffer[i], HEX);
+  }
+}
+bool validarTarjeta(byte uidLeido[]) {
+  // Recorre el arreglo de tarjetas autorizadas
+  for (int i = 0; i < sizeof(tagarray) / sizeof(tagarray[0]); i++) {
+    bool esIgual = true;
+    // Compara cada byte del UID leído con el UID de la tarjeta actual
+    for (int j = 0; j < 4; j++) {
+      if (uidLeido[j] != tagarray[i][j]) {
+        esIgual = false;
+        break;
       }
-
-      Serial.print("\t");  // imprime un espacio de tabulacion
-
-      if (comparaUID(LecturaUID, Usuario1)) {
-
-        // llama a funcion comparaUID con Usuario1
-        Serial.println("Bienvenido Usuario 1");  // si retorna verdadero muestra texto bienvenida
-                                                 //  desplazarTexto("INGRESO"," USUARIO 1",400);
-        servoMotor.write(7);
-        lcd.clear();
-        lcd.print("USUARIO 1 ");
-      } else if (comparaUID(LecturaUID, Usuario2)) {  // llama a funcion comparaUID con Usuario2
-        Serial.println(" Usuario 2");                 // si retorna verdadero muestra texto bienvenida
-        lcd.clear();
-        lcd.print("USUARIO ADMIN");
-        //  desplazarTexto("INGRESO"," USUARIO 2",400);
-      } else if (comparaUID(LecturaUID, Usuario3)) {  // llama a funcion comparaUID con Usuario2
-        lcd.clear();
-        lcd.print("USUARIO 3 ");
-        Serial.println(" Usuario 3");  // si retorna verdadero muestra texto bienvenida
-        // desplazarTexto("INGRESO"," USUARIO 3",400);
-      } else {                            // si retorna falso
-        Serial.println("No te conozco");  // muestra texto equivalente a acceso denegado
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("NO EXISTE");
-      }
-      flag_rfid_activo = 3;
-      mfrc522_2.PICC_HaltA();
+    }
+    // Si todos los bytes coinciden, la tarjeta es válida
+    if (esIgual) {
+      return true;
     }
   }
+  // Si no se encontró ninguna coincidencia, la tarjeta no es válida
+  return false;
 }
-
-boolean comparaUID(byte lectura[], byte usuario[])  // funcion comparaUID
-{
-  for (byte i = 0; i < mfrc522_1.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
-
-    if (lectura[i] != usuario[i])  // si byte de UID leido es distinto a usuario
-      return (false);              // retorna falso
-  }
-  return (true);  // si los 4 bytes coinciden retorna verdadero
-}
-
-
 
 void ISR_entrada() {
   flag_rfid_activo = 1;
@@ -230,4 +339,20 @@ void ISR_entrada() {
 
 void ISR_Salida() {
   flag_rfid_activo = 2;
+}
+
+void AbrirTalanquera_E() {
+  servoMotor_E.write(160);
+}
+
+void CerrarTalanquera_E(){
+  servoMotor_E.write(100);
+}
+
+void AbrirTalanquera_S() {
+  servoMotor_S.write(160);
+}
+
+void CerrarTalanquera_S(){
+  servoMotor_S.write(100);
 }
