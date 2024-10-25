@@ -23,7 +23,10 @@ byte tagarray[][4] = {
   { 0x93, 0xDE, 0x33, 0x96 },
   { 0x73, 0x9D, 0x4F, 0xA9 },
   { 0x0D, 0x6A, 0xB0, 0xD1 },  // Nota: El orden de los bytes puede variar según la implementación
-  { 0x4C, 0xF3, 0xFB, 0x31 }   // Asegúrate de verificar el orden correcto
+  { 0x4C, 0xF3, 0xFB, 0x31 },  // Asegúrate de verificar el orden correcto
+  { 0x31, 0xFB, 0xF3, 0x4C },  // Nuevo UID
+  { 0xD1, 0xB0, 0x6A, 0x0D },  // Nuevo UID
+  { 0x36, 0x8B, 0x58, 0xD3 }   // Nuevo UID
 };
 
 
@@ -76,15 +79,6 @@ void setup() {
   SPI.begin();  // inicializa bus SPI
   mfrc522_1.PCD_Init();
   mfrc522_2.PCD_Init();  // inicializa modulo lector
-
-  mfrc522_1.PCD_WriteRegister(MFRC522::RFCfgReg, 0x7F);
-  mfrc522_1.PCD_WriteRegister(MFRC522::TxControlReg, 0x83); // Aumentar el amplificador
-  mfrc522_1.PCD_SetAntennaGain(mfrc522_1.RxGain_max);
-
-  mfrc522_2.PCD_WriteRegister(MFRC522::RFCfgReg, 0x7F);
-  mfrc522_2.PCD_WriteRegister(MFRC522::TxControlReg, 0x83);
-  mfrc522_2.PCD_SetAntennaGain(mfrc522_2.RxGain_max);
-
 
   //----------LCD
   lcd.init();
@@ -146,7 +140,7 @@ void loop() {
           //Abrir la talanquera
         AbrirTalanquera_E();
         flag_infra_inicio = true;
-        Serial.println("Carnet:EXT");
+        Serial.println("Carnet:ext");
         Serial.println("Accion:1");
         //inicia estados
         //entra a ciclo para infrarjo
@@ -188,6 +182,7 @@ void loop() {
           // Show some details of the PICC (that is: the tag/card)
           for (byte i = 0; i < mfrc522_1.uid.size; i++) {  // bucle recorre de a un byte por vez el UID
             LecturaUID[i] = mfrc522_1.uid.uidByte[i];      // almacena en array el byte del UID leido
+            Serial.print(LecturaUID[i]);
           }
           //Valida si targeta leida es aceptada o no
           bool Confirmacion_entrada = validarTarjeta(LecturaUID);
@@ -276,7 +271,7 @@ void loop() {
         //abrir talanquera
         AbrirTalanquera_S();
         flag_infra_inicio = true;
-        Serial.println("Carnet:EXT");
+        Serial.println("Carnet:ext");
         Serial.println("Accion:0");
 
         //entra a ciclo para infrarjo
@@ -317,6 +312,7 @@ void loop() {
           ///--------------------------------
           for (byte i = 0; i < mfrc522_2.uid.size; i++) {  // bucle recorre de a un byte por vez el UID            
             LecturaUID[i] = mfrc522_2.uid.uidByte[i];     // almacena en array el byte del UID leido
+            Serial.print(LecturaUID[i]);
           }
           //Valida si targeta leida es aceptada o no
           bool Confirmacion_salida = validarTarjeta(LecturaUID);

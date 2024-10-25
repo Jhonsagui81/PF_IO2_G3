@@ -33,10 +33,10 @@ try:
                 # Accion: 0
                 # 0 -> salida
                 # 1 -> entrada
-                info1[cadena[0].lower()] = int(cadena[1])
+                info1[cadena[0].lower()] = str(cadena[1])
                 print(info1)
                 #post a la base de datos redis
-                requests.post('http://127.0.0.1:5000/update_parking', json=info1)
+                requests.post('http://localhost:5000/update_parking', json=info1)
                 
 
         time.sleep(0.1)
