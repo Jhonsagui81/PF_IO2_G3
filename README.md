@@ -17,6 +17,6 @@ Esta talanquera esta conformada por sensores y controladores. Los datos recolect
 - **Ultrasonico**: En el caso que una persona externa a la Facultad deseara ingresar al parqueo debia presionar un boton identificado como **persona externa**. Al precionar este boton se activaba un sensor ultrasonico el cual tenia como finalidad verificar que el cliente depositara una moneda o billete como forma de pago. Una vez pagado se abria la Talanquera.
 - **Infrarojo**: Una vez la persona lograba ingresar por la talanquera esta se bajaba hasta que el automovil pasara por el sensor infrarojo, evitando asi problemas como que el carro no paso a tiempo y la talanquera le cae encima.
 
-Con esto lograbamos obtener la cantidad de parqueos disponibles, la cantidad de parqueos ocupados por estudiantes y por personas externas. Esto era sumamente util ya que hay personas que utilizan los parqueos de la universidad y luego se van a sus trabajos, esto lo hacen con el fin de no pagar parqueo en otro establecimiento. [mas detalles](../Frontend/README.md)
+Con esto lograbamos obtener la cantidad de parqueos disponibles, la cantidad de parqueos ocupados por estudiantes y por personas externas. Esto era sumamente util ya que hay personas que utilizan los parqueos de la universidad y luego se van a sus trabajos, esto lo hacen con el fin de no pagar parqueo en otro establecimiento. [mas detalles](./Frontend/README.md)
 
 ![alt text](<./img/img1.JPG>)
